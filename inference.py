@@ -40,11 +40,13 @@ args = EasyDict({
     'history_path': "histories/history_r2plus1d_augmented-2.txt"
 })
 
+
 def batch_to_framelist(batch):
     # (batch, c, t, h, w) -> (batch, t, h, w, c)
-    batch = batch.permute(0, 2, 3 ,4 ,1)
+    batch = batch.permute(0, 2, 3, 4, 1)
     framelist = batch.cpu().numpy()
     return framelist
+
 
 def inference(loader, model):
     num_correct = 0
@@ -71,7 +73,7 @@ def inference(loader, model):
 
             outputs = model(x)
             _, preds = torch.max(outputs, 1)
-            y_ = y.argmax (1)
+            y_ = y.argmax(1)
 
             num_correct += (preds == y_).sum()
             num_samples += preds.size(0)
@@ -87,7 +89,8 @@ def inference(loader, model):
             softmax_predictions = torch.softmax(outputs, dim=-1).cpu().numpy().tolist()
             softmax_preds = [max(pred) for pred in softmax_predictions]
 
-            for framedata, softpred, softpreds, predlabel, label in zip(raw_data, softmax_preds, softmax_predictions, pred_class, gt):
+            for framedata, softpred, softpreds, predlabel, label in zip(raw_data, softmax_preds, softmax_predictions,
+                                                                        pred_class, gt):
                 # If correct
                 if predlabel == label:
                     correct.append({
@@ -110,10 +113,10 @@ def inference(loader, model):
                     })
                     correct_softmax.append(softpred)
 
-            pbar.set_description('Progress: {}'.format(i/args.test_n))
+            pbar.set_description('Progress: {}'.format(i / args.test_n))
             i += args.batch_size
 
-        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100:.2f}')
+        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct) / float(num_samples) * 100:.2f}')
 
     model.train()
 
@@ -134,6 +137,7 @@ def inference(loader, model):
     }
     return predictions, confusion_matrix_
 
+
 if __name__ == "__main__":
     print("PyTorch Version: ", torch.__version__)
     print("Torchvision Version: ", torchvision.__version__)
@@ -152,7 +156,7 @@ if __name__ == "__main__":
     # New Model is trained with 128x176 images
     # Calculation:
     model.fc = nn.Linear(num_ftrs, args.num_classes, bias=True)
-    print(model)
+    # print(model)
 
     model = load_weights(model, args)
 
@@ -160,15 +164,15 @@ if __name__ == "__main__":
         # Put model into device after updating parameters
         model = model.to(device)
 
-    #Load Dataset
+    # Load Dataset
     basketball_dataset = BasketballDataset(annotation_dict=args.annotation_path,
                                            augmented_dict=args.augmented_annotation_path)
 
     train_subset, test_subset = random_split(
-    basketball_dataset, [args.n_total-args.test_n, args.test_n], generator=torch.Generator().manual_seed(1))
+        basketball_dataset, [args.n_total - args.test_n, args.test_n], generator=torch.Generator().manual_seed(1))
 
     train_subset, val_subset = random_split(
-        train_subset, [args.n_total-args.test_n-args.val_n, args.val_n], generator=torch.Generator().manual_seed(1))
+        train_subset, [args.n_total - args.test_n - args.val_n, args.val_n], generator=torch.Generator().manual_seed(1))
 
     train_loader = DataLoader(dataset=train_subset, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(dataset=val_subset, shuffle=False, batch_size=args.batch_size)

@@ -28,23 +28,26 @@ args = EasyDict({
     # training/model params
     'lr': 0.0001,
     'start_epoch': 1,
-    'num_epochs': 25,
+    'num_epochs': 2,
     'layers_list': ['layer3', 'layer4', 'fc'],
     'continue_epoch': False,
 
     # Dataset params
     'num_classes': 10,
     'batch_size': 8,
-    'n_total': 49901,
+    # 'n_total': 49901,
+    'n_total': 37085,
     'test_n': 4990,
     'val_n': 9980,
 
     # Path params
     'annotation_path': "dataset/annotation_dict.json",
-    'augmented_annotation_path': "dataset/augmented_annotation_dict.json",
+    # 'augmented_annotation_path': "dataset/augmented_annotation_dict.json",
+    'augmented_annotation_path': "dataset/annotation_dict.json",
     'model_path': "model_checkpoints/r2plus1d_augmented-2/",
     'history_path': "histories/history_r2plus1d_augmented-2.txt"
 })
+
 
 def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, num_epochs=25):
     """
@@ -109,8 +112,8 @@ def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, n
                     loss = criterion(outputs, torch.max(labels, 1)[1])
 
                     _, preds = torch.max(outputs, 1)
-                    #print(preds)
-                    #print(torch.max(labels, 1)[1])
+                    # print(preds)
+                    # print(torch.max(labels, 1)[1])
 
                     if phase == 'train':
                         train_pred_classes.extend(preds.detach().cpu().numpy())
@@ -128,7 +131,8 @@ def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, n
                 running_loss += loss.item() * inputs.size(0)
                 running_corrects += torch.sum(preds == torch.max(labels, 1)[1])
 
-                pbar.set_description('Phase: {} || Epoch: {} || Loss {:.5f} '.format(phase, epoch, running_loss / train_n_total))
+                pbar.set_description(
+                    'Phase: {} || Epoch: {} || Loss {:.5f} '.format(phase, epoch, running_loss / train_n_total))
                 train_n_total += 1
 
             epoch_loss = running_loss / len(dataloaders[phase].dataset)
@@ -149,7 +153,8 @@ def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, n
                     val_pred_classes, val_ground_truths
                 )
                 val_f1_score.append(val_f1)
-                val_confusion_matrix = np.array_str(confusion_matrix(val_ground_truths, val_pred_classes, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+                val_confusion_matrix = np.array_str(
+                    confusion_matrix(val_ground_truths, val_pred_classes, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
                 print('Epoch: {} || Val_Acc: {} || Val_Loss: {}'.format(
                     epoch, val_accuracy, epoch_loss
                 ))
@@ -172,7 +177,8 @@ def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, n
                     train_pred_classes, train_ground_truths
                 )
                 train_f1_score.append(train_f1)
-                train_confusion_matrix = np.array_str(confusion_matrix(train_ground_truths, train_pred_classes, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+                train_confusion_matrix = np.array_str(
+                    confusion_matrix(train_ground_truths, train_pred_classes, labels=[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
                 print('Epoch: {} || Train_Acc: {} || Train_Loss: {}'.format(
                     epoch, train_accuracy, epoch_loss
                 ))
@@ -211,6 +217,7 @@ def train_model(model, dataloaders, criterion, optimizer, args, start_epoch=1, n
     model.load_state_dict(best_model_wts)
     return model, train_loss_history, val_loss_history, train_acc_history, val_acc_history, train_f1_score, val_f1_score, plot_epoch
 
+
 def check_accuracy(loader, model):
     num_correct = 0
     num_samples = 0
@@ -226,18 +233,19 @@ def check_accuracy(loader, model):
 
             scores = model(x)
             print(scores)
-            predictions = scores.argmax (1)
-            y = y.argmax (1)
+            predictions = scores.argmax(1)
+            y = y.argmax(1)
 
             num_correct += (predictions == y).sum()
             num_samples += predictions.size(0)
 
-            pbar.set_description('Progress: {}'.format(i/args.test_n))
+            pbar.set_description('Progress: {}'.format(i / args.test_n))
             i += args.batch_size
 
-        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct)/float(num_samples)*100:.2f}')
+        print(f'Got {num_correct} / {num_samples} with accuracy {float(num_correct) / float(num_samples) * 100:.2f}')
 
     model.train()
+
 
 if __name__ == "__main__":
     print("PyTorch Version: ", torch.__version__)
@@ -290,15 +298,16 @@ if __name__ == "__main__":
         sometimes(vidaug.Pepper()),
     ], random_order=True)
 
-    #Load Dataset
+    # Load Dataset
     basketball_dataset = BasketballDataset(annotation_dict=args.annotation_path,
                                            augmented_dict=args.augmented_annotation_path)
 
+    print(len(basketball_dataset))
     train_subset, test_subset = random_split(
-    basketball_dataset, [args.n_total-args.test_n, args.test_n], generator=torch.Generator().manual_seed(1))
+        basketball_dataset, [args.n_total - args.test_n, args.test_n], generator=torch.Generator().manual_seed(1))
 
     train_subset, val_subset = random_split(
-        train_subset, [args.n_total-args.test_n-args.val_n, args.val_n], generator=torch.Generator().manual_seed(1))
+        train_subset, [args.n_total - args.test_n - args.val_n, args.val_n], generator=torch.Generator().manual_seed(1))
 
     train_loader = DataLoader(dataset=train_subset, shuffle=True, batch_size=args.batch_size)
     val_loader = DataLoader(dataset=val_subset, shuffle=False, batch_size=args.batch_size)
@@ -320,13 +329,14 @@ if __name__ == "__main__":
         criterion = criterion.to(device)
 
     # Train and evaluate
-    model, train_loss_history, val_loss_history, train_acc_history, val_acc_history, train_f1_score, val_f1_score, plot_epoch = train_model(model,
-                                                                                                                                            dataloaders_dict,
-                                                                                                                                            criterion,
-                                                                                                                                            optimizer_ft,
-                                                                                                                                            args,
-                                                                                                                                            start_epoch=args.start_epoch,
-                                                                                                                                            num_epochs=args.num_epochs)
+    model, train_loss_history, val_loss_history, train_acc_history, val_acc_history, train_f1_score, val_f1_score, plot_epoch = train_model(
+        model,
+        dataloaders_dict,
+        criterion,
+        optimizer_ft,
+        args,
+        start_epoch=args.start_epoch,
+        num_epochs=args.num_epochs)
 
     print("Best Validation Loss: ", min(val_loss_history), "Epoch: ", val_loss_history.index(min(val_loss_history)))
     print("Best Training Loss: ", min(train_loss_history), "Epoch: ", train_loss_history.index(min(train_loss_history)))
@@ -348,5 +358,3 @@ if __name__ == "__main__":
 
     # Check Accuracy with Test Set
     check_accuracy(test_loader, model)
-
-

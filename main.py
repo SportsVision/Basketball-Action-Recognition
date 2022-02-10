@@ -6,6 +6,7 @@ from easydict import EasyDict
 from random import randint
 import sys
 from imutils.video import FPS
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -22,7 +23,8 @@ args = EasyDict({
     'detector': "tracker",
 
     # Path Params
-    'videoPath': "videos/lebron_shoots.mp4",
+    # 'videoPath': "videos/lebron_shoots.mp4",
+    'videoPath': "videos/test3_comp.mp4",
 
     # Player Tracking
     'classes': ["person"],
@@ -45,7 +47,17 @@ args = EasyDict({
     'lr': 0.0001,
     'start_epoch': 19,
     'num_classes': 10,
-    'labels': {"0" : "block", "1" : "pass", "2" : "run", "3" : "dribble", "4" : "shoot", "5" : "ball in hand", "6" : "defense", "7" : "pick" , "8" : "no_action" , "9" : "walk" , "10" : "discard"},
+    'labels': {"0": "block",
+               "1": "pass",
+               "2": "run",
+               "3": "dribble",
+               "4": "shoot",
+               "5": "ball in hand",
+               "6": "defense",
+               "7": "pick",
+               "8": "no_action",
+               "9": "walk",
+               "10": "discard"},
     'model_path': "model_checkpoints/r2plus1d_augmented-2/",
     'history_path': "histories/history_r2plus1d_augmented-2.txt",
     'seq_length': 16,
@@ -53,6 +65,7 @@ args = EasyDict({
     'output_path': "output_videos/"
 
 })
+
 
 def createTrackerByName(trackerType):
     # Create a tracker based on tracker name
@@ -81,12 +94,14 @@ def createTrackerByName(trackerType):
 
     return tracker
 
+
 def get_output_layers(net):
     layer_names = net.getLayerNames()
 
     output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
 
     return output_layers
+
 
 def draw_prediction(img, class_id, x, y, x_plus_w, y_plus_h):
     # Indices 0 is for person
@@ -100,8 +115,8 @@ def draw_prediction(img, class_id, x, y, x_plus_w, y_plus_h):
         # Text of Class
         cv2.putText(img, label, (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-def extractFrame(videoPath):
 
+def extractFrame(videoPath):
     videoFrames = []
     playerBoxes = []
 
@@ -135,6 +150,8 @@ def extractFrame(videoPath):
 
     # Set up Neural Net
     net = cv2.dnn.readNet(args.weights, args.config)
+    # net = cv2.dnn.readNet(args.config, args.weights)
+    # net = cv2.dnn.readNetFromDarknet(args.weights, args.config)
 
     cap = cv2.VideoCapture(videoPath)
 
@@ -385,17 +402,17 @@ def extractFrame(videoPath):
 
     return videoFrames, playerBoxes, Width, Height, colors
 
-def cropVideo(clip, crop_window, player=0):
 
+def cropVideo(clip, crop_window, player=0):
     video = []
-    #print(len(clip))
+    # print(len(clip))
     for i, frame in enumerate(clip):
         x = int(crop_window[i][player][0])
         y = int(crop_window[i][player][1])
         w = int(crop_window[i][player][2])
         h = int(crop_window[i][player][3])
 
-        cropped_frame = frame[y:y+h, x:x+w]
+        cropped_frame = frame[y:y + h, x:x + w]
         # resize to 128x176
         try:
             resized_frame = cv2.resize(
@@ -409,19 +426,20 @@ def cropVideo(clip, crop_window, player=0):
             if len(video) == 0:
                 resized_frame = np.zeros((int(176), int(128), 3), dtype=np.uint8)
             else:
-                resized_frame = video[i-1]
+                resized_frame = video[i - 1]
         assert resized_frame.shape == (176, 128, 3)
         video.append(resized_frame)
 
     return video
+
 
 def inference_batch(batch):
     # (batch, t, h, w, c) --> (batch, c, t, h, w)
     batch = batch.permute(0, 4, 1, 2, 3)
     return batch
 
-def cropWindows(vidFrames, playerBoxes, seq_length=16, vid_stride=8):
 
+def cropWindows(vidFrames, playerBoxes, seq_length=16, vid_stride=8):
     player_count = len(playerBoxes[0])
     player_frames = {}
     for player in range(player_count):
@@ -432,12 +450,12 @@ def cropWindows(vidFrames, playerBoxes, seq_length=16, vid_stride=8):
 
     continue_clip = 0
     for clip_n in range(n_clips):
-        crop_window = playerBoxes[clip_n*vid_stride: clip_n*vid_stride + seq_length]
+        crop_window = playerBoxes[clip_n * vid_stride: clip_n * vid_stride + seq_length]
         for player in range(player_count):
-            if clip_n*vid_stride + seq_length < len(vidFrames):
-                clip = vidFrames[clip_n*vid_stride: clip_n*vid_stride + seq_length]
-                #print(" length of clip ", len(clip))
-                #print(np.asarray(cropVideo(clip, crop_window, player)).shape)
+            if clip_n * vid_stride + seq_length < len(vidFrames):
+                clip = vidFrames[clip_n * vid_stride: clip_n * vid_stride + seq_length]
+                # print(" length of clip ", len(clip))
+                # print(np.asarray(cropVideo(clip, crop_window, player)).shape)
                 player_frames[player].append(np.asarray(cropVideo(clip, crop_window, player)))
             else:
                 continue_clip = clip_n
@@ -448,20 +466,21 @@ def cropWindows(vidFrames, playerBoxes, seq_length=16, vid_stride=8):
     # Append to list after padding
     for i in range(continue_clip, n_clips):
         for player in range(player_count):
-            crop_window = playerBoxes[vid_stride*i:]
+            crop_window = playerBoxes[vid_stride * i:]
             frames_remaining = len(vidFrames) - vid_stride * i
-            clip = vidFrames[vid_stride*i:]
+            clip = vidFrames[vid_stride * i:]
             player_frames[player].append(np.asarray(cropVideo(clip, crop_window, player) + [
-            np.zeros((int(176), int(128), 3), dtype=np.uint8) for x in range(seq_length-frames_remaining)
-        ]))
+                np.zeros((int(176), int(128), 3), dtype=np.uint8) for x in range(seq_length - frames_remaining)
+            ]))
 
     # Check if number of clips is expected
-    assert(len(player_frames[0]) == n_clips)
+    assert (len(player_frames[0]) == n_clips)
 
     return player_frames
 
-def writeVideo(videoPath, videoFrames, playerBoxes, predictions, colors, frame_width=1280, frame_height=720, vid_stride=8):
 
+def writeVideo(videoPath, videoFrames, playerBoxes, predictions, colors, frame_width=1280, frame_height=720,
+               vid_stride=8):
     out = cv2.VideoWriter(videoPath, cv2.VideoWriter_fourcc('m', 'p', '4', 'v'), 10, (frame_width, frame_height))
     for i, frame in enumerate(videoFrames):
 
@@ -476,9 +495,10 @@ def writeVideo(videoPath, videoFrames, playerBoxes, predictions, colors, frame_w
 
             # Write Prediction
             if i // vid_stride < len(predictions[player]):
-                print(i // vid_stride)
-                print(str(predictions[player][i // vid_stride]))
-                cv2.putText(frame, args.labels[str(predictions[player][i // vid_stride])], (p1[0] - 10, p1[1] - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[player], 2)
+                # print(i // vid_stride)
+                # print(str(predictions[player][i // vid_stride]))
+                cv2.putText(frame, args.labels[str(predictions[player][i // vid_stride])], (p1[0] - 10, p1[1] - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[player], 2)
 
         # Display the resulting frame
         cv2.imshow('frame', frame)
@@ -489,8 +509,8 @@ def writeVideo(videoPath, videoFrames, playerBoxes, predictions, colors, frame_w
     out.release()
     cv2.destroyAllWindows()
 
-def main():
 
+def main():
     videoFrames, playerBoxes, Width, Height, colors = extractFrame(args.videoPath)
 
     print("Video Dimensions: ({},{})".format(Width, Height))
@@ -525,7 +545,7 @@ def main():
     predictions = {}
     for player in range(len(playerBoxes[0])):
         input_frames = inference_batch(torch.FloatTensor(frames[player]))
-        print(input_frames.shape)
+        print("Input frames' shape: \t", input_frames.shape)
 
         input_frames = input_frames.to(device=device)
 
@@ -533,14 +553,16 @@ def main():
             outputs = model(input_frames)
             _, preds = torch.max(outputs, 1)
 
-        print(preds.cpu().numpy().tolist())
+        print("Class of predictions: \t", preds.cpu().numpy().tolist())
         predictions[player] = preds.cpu().numpy().tolist()
 
-    print(predictions)
+    print("Predictions: \t", predictions)
 
     # Writing Video
-    output_path = args.output_path + "lebron_shoots-3.mp4"
-    writeVideo(output_path, videoFrames, playerBoxes, predictions, colors, frame_width=1280, frame_height=720, vid_stride=16)
+    output_path = args.output_path + "test3_v1.mp4"
+    print("Write video to path ", output_path)
+    # writeVideo(output_path, videoFrames, playerBoxes, predictions, colors, frame_width=1280, frame_height=720, vid_stride=16)
+    writeVideo(output_path, videoFrames, playerBoxes, predictions, colors, frame_width=Width, frame_height=Height, vid_stride=args.vid_stride)
 
 
 if __name__ == "__main__":
