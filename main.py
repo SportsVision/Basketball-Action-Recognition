@@ -23,8 +23,9 @@ args = EasyDict({
     'detector': "tracker",
 
     # Path Params
+    'videoPath': "videos/test1_comp_cut_02.mp4",
     # 'videoPath': "videos/lebron_shoots.mp4",
-    'videoPath': "videos/test3_comp.mp4",
+    # 'videoPath': "videos/test3_comp.mp4",
 
     # Player Tracking
     'classes': ["person"],
@@ -44,14 +45,25 @@ args = EasyDict({
     # Action Recognition
     'base_model_name': 'r2plus1d_multiclass',
     'pretrained': True,
-    'lr': 0.0001,
-    'start_epoch': 19,
-    'num_classes': 10,
-    'labels': {"0": "block",
-               "1": "pass",
+    'lr': 0.001,
+    'start_epoch': 4,
+    'num_classes': 2,
+    # 'labels': {"0": "block",
+    #            "1": "pass",
+    #            "2": "run",
+    #            "3": "dribble",
+    #            "4": "shoot",                # Change to 1
+    #            "5": "ball in hand",
+    #            "6": "defense",
+    #            "7": "pick",
+    #            "8": "no_action",
+    #            "9": "walk",
+    #            "10": "discard"},
+    'labels': {"0": "nonshoot",
+               "1": "shot",
                "2": "run",
                "3": "dribble",
-               "4": "shoot",
+               "4": "shoot",  # Change to 1
                "5": "ball in hand",
                "6": "defense",
                "7": "pick",
@@ -559,7 +571,10 @@ def main():
     print("Predictions: \t", predictions)
 
     # Writing Video
-    output_path = args.output_path + "test3_v1.mp4"
+    # output_path = args.output_path + "test3_v1.mp4"
+    # output_path = args.output_path + "test1_v3.mp4"
+    # output_path = args.output_path + "lebron_v1.mp4"
+    output_path = args.output_path + "test1_cut_02_v1.mp4"
     print("Write video to path ", output_path)
     # writeVideo(output_path, videoFrames, playerBoxes, predictions, colors, frame_width=1280, frame_height=720, vid_stride=16)
     writeVideo(output_path, videoFrames, playerBoxes, predictions, colors, frame_width=Width, frame_height=Height, vid_stride=args.vid_stride)
